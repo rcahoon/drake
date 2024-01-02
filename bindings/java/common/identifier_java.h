@@ -2,12 +2,11 @@
 
 #include <string>
 
-#include "drake/bindings/pydrake/documentation_pybind.h"
-#include "drake/bindings/pydrake/pydrake_pybind.h"
+#include "drake/bindings/java/drake_java.h"
 #include "drake/common/identifier.h"
 
 namespace drake {
-namespace pydrake {
+namespace java {
 
 /// Binds an Identifier instantiation.
 template <typename Class, typename ModuleOrClass>
@@ -28,5 +27,5 @@ void BindIdentifier(
       });
 }
 
-}  // namespace pydrake
+}  // namespace java
 }  // namespace drake

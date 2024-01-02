@@ -1,8 +1,8 @@
-/* @file This contains all of the various types in the drake::geometry namespace
- that represent the "core" geometry concepts: instances, frames, properties.
- These don't depend on any of geometry's computational structure, but, instead,
- represent the input values to all of those computations. They can be found in
- the pydrake.geometry module. */
+# @file This contains all of the various types in the drake::geometry namespace
+# that represent the "core" geometry concepts: instances, frames, properties.
+# These don't depend on any of geometry's computational structure, but, instead,
+# represent the input values to all of those computations. They can be found in
+# the pydrake.geometry module.
 
 #include "drake/bindings/pydrake/common/default_scalars_pybind.h"
 #include "drake/bindings/pydrake/common/identifier_pybind.h"
@@ -20,284 +20,169 @@
 #include "drake/geometry/proximity_properties.h"
 #include "drake/geometry/shape_specification.h"
 
-namespace drake {
-namespace pydrake {
-namespace {
+CollisionFilterDeclaration = bind `drake::geometry::CollisionFilterDeclaration` @ "drake/geometry/collision_filter_declaration.h" {
+    static init(): CollisionFilterDeclaration `
+        return std::make_shared<CollisionFilterDeclaration>();
+    `;
+    AllowBetween(set_A: GeometrySet, set_B: GeometrySet): CollisionFilterDeclaration;
+    AllowWithin(geometry_set: GeometrySet): CollisionFilterDeclaration;
+    ExcludeBetween(set_A: GeometrySet, set_B: GeometrySet): CollisionFilterDeclaration;
+    ExcludeWithin(geometry_set: GeometrySet): CollisionFilterDeclaration;
+}
 
-void DoScalarIndependentDefinitions(py::module m) {
-  // NOLINTNEXTLINE(build/namespaces): Emulate placement in namespace.
-  using namespace drake::geometry;
-  constexpr auto& doc = pydrake_doc.drake.geometry;
+CollisionFilterManager = bind `drake::geometry::CollisionFilterManager` @ "drake/geometry/collision_filter_manager.h" {
+    Apply(declaration: CollisionFilterDeclaration): void;
+    ApplyTransient(declaration: CollisionFilterDeclaration): FilterId
+    RemoveDeclaration(filter_id: FilterId): bool;
+    has_transient_history(): bool;
+    IsActive(filter_id: FilterId): bool;
+}
 
-  // CollisionFilterDeclaration.
-  {
-    using Class = CollisionFilterDeclaration;
-    constexpr auto& cls_doc = doc.CollisionFilterDeclaration;
+GeometryFrame = bind `drake::geometry::GeometryFrame` @ "drake/geometry/geometry_frame.h" {
+    static init(frame_name: string, frame_group_id: i32>): GeometryFrame `
+        return std::make_shared<GeometryFrame>(frame_name, frame_group_id);
+    `;
+    id(): FrameId;
+    name(): string;
+    frame_group(): i32;
+    $DefCopyAndDeepCopy
+}
 
-    py::class_<Class>(m, "CollisionFilterDeclaration", cls_doc.doc)
-        .def(py::init(), cls_doc.ctor.doc)
-        .def("AllowBetween", &Class::AllowBetween, py::arg("set_A"),
-            py::arg("set_B"), py_rvp::reference, cls_doc.AllowBetween.doc)
-        .def("AllowWithin", &Class::AllowWithin, py::arg("geometry_set"),
-            py_rvp::reference, cls_doc.AllowWithin.doc)
-        .def("ExcludeBetween", &Class::ExcludeBetween, py::arg("set_A"),
-            py::arg("set_B"), py_rvp::reference, cls_doc.ExcludeBetween.doc)
-        .def("ExcludeWithin", &Class::ExcludeWithin, py::arg("geometry_set"),
-            py_rvp::reference, cls_doc.ExcludeWithin.doc);
-  }
+GeometryInstance = bind `drake::geometry::GeometryInstance` @ "drake/geometry/geometry_instance.h" {
+    static init(X_PG: math::RigidTransform<double>, shape: Shape, name: string): GeometryInstance `
+        return std::make_shared<GeometryInstance>(*X_PG, *shape, name);
+    `;
+    id(): GeometryId;
+    pose(): math::RigidTransform<double> ref_return_value keep_alive(0, 1);
+    set_pose(X_PG: math::RigidTransform<double>): void;
+    shape(): Shape ref_return_value keep_alive(0, 1);
+    name(): string;
+    set_name(name: string): void;
+    set_proximity_properties(properties: ProximityProperties): void;
+    set_illustration_properties(properties: IllustrationProperties): void;
+    set_perception_properties(properties: PerceptionProperties): void;
+    mutable_proximity_properties(): ProximityProperties ref_return_value keep_alive(0, 1);
+    proximity_properties(): ProximityProperties ref_return_value keep_alive(0, 1);
+    mutable_illustration_properties(): IllustrationProperties ref_return_value keep_alive(0, 1);
+    illustration_properties(): IllustrationProperties ref_return_value keep_alive(0, 1);
+    mutable_perception_properties(): PerceptionProperties ref_return_value keep_alive(0, 1);
+    perception_properties(): PerceptionProperties ref_return_value keep_alive(0, 1);
+    $DefCopyAndDeepCopy
+}
+GeometryProperties = bind `drake::geometry::GeometryProperties` @ "drake/geometry/geometry_properties.h" {
+    HasGroup(group_name: string): bool;
+    num_groups(): i32;
+    GetPropertiesInGroup(group_name: string): map<string, AbstractValue> `
+        std::unordered_map<std::string, djinni::SharedPtr<AbstractValue>> out;
+        for (auto& [name, abstract] : self->GetPropertiesInGroup(group_name)) {
+            auto ref = djinni::DisconnectReference<djinni::SharedPtr<AbstractValue>>::apply(abstract);
+            ref.keepAlive(self);
+            out[name] = ref;
+        }
+        return out;
+    `;
+    GetGroupNames(): set<string>;
+    AddProperty(group_name: string, name: string, value: AbstractValue) `
+        self->AddPropertyAbstract(group_name, name, *value);
+    `;
+    UpdateProperty(group_name: string, name: string, value: AbstractValue) `
+        self->UpdatePropertyAbstract(group_name, name, *value);
+    `;
+    HasProperty(group_name: string): bool;
+    GetProperty(group_name: string, name: string): AbstractValue ref_return_value `
+        return self->GetPropertyAbstract(group_name, name);
+    `;
+    GetPropertyOrDefault(group_name: string, name: string, default_value: AbstractValue): AbstractValue `
+        //TODO: For now, ignore typing.
+        if (self->HasProperty(group_name, name)) {
+            auto ref = self->GetPropertyAbstract(group_name, name);
+            auto ref = djinni::DisconnectReference<djinni::SharedPtr<AbstractValue>>::apply(abstract);
+            ref.keepAlive(self);
+            return ret;
+        } else {
+            return default_value;
+        }
+    `;
+    RemoveProperty(group_name: string, name: string): bool;
+    static default_group_name(): string;
+    # Returns formatted string.
+    toString(): string `
+        std::stringstream ss;
+        ss << *self;
+        return ss.str();
+    `;
+}
+GeometrySet = bind `drake::geometry::GeometrySet` @ "drake/geometry/geometry_set.h" {
+    static init(): GeometrySet `
+        return std::make_shared<GeometrySet>();
+    `;
+    static init(geometry_id: GeometryId): GeometrySet `
+        return std::make_shared<GeometrySet>(geometry_id);
+    `;
+    static init(frame_id: FrameId): GeometrySet `
+        return std::make_shared<GeometrySet>(frame_id);
+    `;
+    static init(geometry_ids: list<GeometryId>) `
+        return std::make_shared<GeometrySet>(geometry_ids);
+    `;
+    static init(frame_ids: std::vector<FrameId>) `
+        return std::make_shared<GeometrySet>(frame_ids);
+    `;
+    static init(geometry_ids: list<GeometryId>, frame_ids: std::vector<FrameId>) `
+        return std::make_shared<GeometrySet>(geometry_ids, frame_ids);
+    `;
+    Add(geometry_id: GeometryId): void {
+        self->Add(geometry_id);
+    `;
+    Add(frame_id: FrameId) `
+        self->Add(frame_id);
+    `;
+    Add(geometry_ids: list<GeometryId>): void `
+        self->Add(geometry_ids);
+    `;
+    Add(frame_ids: list<FrameId> ) {
+        self->Add(frame_ids);
+    `;
+    Add(geometry_ids: list<GeometryId>, frame_ids: list<FrameId>) `
+        self->Add(geometry_ids, frame_ids);
+    `;
+}
 
-  // CollisionFilterManager
-  {
-    using Class = CollisionFilterManager;
-    constexpr auto& cls_doc = doc.CollisionFilterManager;
-    py::class_<Class>(m, "CollisionFilterManager", cls_doc.doc)
-        .def("Apply", &Class::Apply, py::arg("declaration"), cls_doc.Apply.doc)
-        .def("ApplyTransient", &Class::ApplyTransient, py::arg("declaration"),
-            cls_doc.ApplyTransient.doc)
-        .def("RemoveDeclaration", &Class::RemoveDeclaration,
-            py::arg("filter_id"), cls_doc.RemoveDeclaration.doc)
-        .def("has_transient_history", &Class::has_transient_history,
-            cls_doc.has_transient_history.doc)
-        .def("IsActive", &Class::IsActive, py::arg("filter_id"),
-            cls_doc.IsActive.doc);
-  }
+GeometryVersion = bind `drake::geometry::GeometryVersion` @ "drake/geometry/geometry_set.h" {
+    static init(): GeometryVersion `
+        return std::make_shared<GeometryVersion>();
+    `;
+    # Creates a copy of the GeometryVersion.
+    static init(other: GeometryVersion): GeometryVersion `
+        return std::make_shared<GeometryVersion>(*other);
+    `
+    IsSameAs(other: GeometryVersion, role: Role): bool;
+    $DefCopyAndDeepCopy
+}
 
-  // GeometryFrame
-  {
-    using Class = GeometryFrame;
-    constexpr auto& cls_doc = doc.GeometryFrame;
-    py::class_<Class> cls(m, "GeometryFrame", cls_doc.doc);
-    cls  // BR
-        .def(py::init<const std::string&, int>(), py::arg("frame_name"),
-            py::arg("frame_group_id") = 0, cls_doc.ctor.doc)
-        .def("id", &Class::id, cls_doc.id.doc)
-        .def("name", &Class::name, cls_doc.name.doc)
-        .def("frame_group", &Class::frame_group, cls_doc.frame_group.doc);
-    DefCopyAndDeepCopy(&cls);
-  }
+$BindIdentifier(FilterId)
+$BindIdentifier(SourceId)
+$BindIdentifier(FrameId)
+$BindIdentifier(GeometryId)
 
-  // GeometryInstance
-  {
-    using Class = GeometryInstance;
-    constexpr auto& cls_doc = doc.GeometryInstance;
-    py::class_<Class> cls(m, "GeometryInstance", cls_doc.doc);
-    cls  // BR
-        .def(py::init<const math::RigidTransform<double>&, const Shape&,
-                 const std::string&>(),
-            py::arg("X_PG"), py::arg("shape"), py::arg("name"),
-            cls_doc.ctor.doc)
-        .def("id", &Class::id, cls_doc.id.doc)
-        .def("pose", &Class::pose, py_rvp::reference_internal, cls_doc.pose.doc)
-        .def(
-            "set_pose", &Class::set_pose, py::arg("X_PG"), cls_doc.set_pose.doc)
-        .def("shape", &Class::shape, py_rvp::reference_internal,
-            cls_doc.shape.doc)
-        .def("name", &Class::name, cls_doc.name.doc)
-        .def("set_name", &Class::set_name, cls_doc.set_name.doc)
-        .def("set_proximity_properties", &Class::set_proximity_properties,
-            py::arg("properties"), cls_doc.set_proximity_properties.doc)
-        .def("set_illustration_properties", &Class::set_illustration_properties,
-            py::arg("properties"), cls_doc.set_illustration_properties.doc)
-        .def("set_perception_properties", &Class::set_perception_properties,
-            py::arg("properties"), cls_doc.set_perception_properties.doc)
-        .def("mutable_proximity_properties",
-            &Class::mutable_proximity_properties, py_rvp::reference_internal,
-            cls_doc.mutable_proximity_properties.doc)
-        .def("proximity_properties", &Class::proximity_properties,
-            py_rvp::reference_internal, cls_doc.proximity_properties.doc)
-        .def("mutable_illustration_properties",
-            &Class::mutable_illustration_properties, py_rvp::reference_internal,
-            cls_doc.mutable_illustration_properties.doc)
-        .def("illustration_properties", &Class::illustration_properties,
-            py_rvp::reference_internal, cls_doc.illustration_properties.doc)
-        .def("mutable_perception_properties",
-            &Class::mutable_perception_properties, py_rvp::reference_internal,
-            cls_doc.mutable_perception_properties.doc)
-        .def("perception_properties", &Class::perception_properties,
-            py_rvp::reference_internal, cls_doc.perception_properties.doc);
-    DefCopyAndDeepCopy(&cls);
-  }
+IllustrationProperties = bind as GeometryProperties `drake::geometry::IllustrationProperties` @ "drake/geometry/geometry_roles.h" {
+    static init(): IllustrationProperties `
+        return std::make_shared<IllustrationProperties>();
+    `;
+    # Creates a copy of the properties
+    static init(other: IllustrationProperties): IllustrationProperties `
+        return std::make_shared<IllustrationProperties>();
+    `;
+    $DefCopyAndDeepCopy
+}
 
-  // GeometryProperties
-  {
-    using Class = GeometryProperties;
-    constexpr auto& cls_doc = doc.GeometryProperties;
-    py::handle abstract_value_cls =
-        py::module::import("pydrake.common.value").attr("AbstractValue");
-    py::class_<Class>(m, "GeometryProperties", cls_doc.doc)
-        .def("HasGroup", &Class::HasGroup, py::arg("group_name"),
-            cls_doc.HasGroup.doc)
-        .def("num_groups", &Class::num_groups, cls_doc.num_groups.doc)
-        .def(
-            "GetPropertiesInGroup",
-            [](const Class& self, const std::string& group_name) {
-              py::dict out;
-              py::object py_self = py::cast(&self, py_rvp::reference);
-              for (auto& [name, abstract] :
-                  self.GetPropertiesInGroup(group_name)) {
-                out[name.c_str()] = py::cast(
-                    abstract.get(), py_rvp::reference_internal, py_self);
-              }
-              return out;
-            },
-            py::arg("group_name"), cls_doc.GetPropertiesInGroup.doc)
-        .def("GetGroupNames", &Class::GetGroupNames, cls_doc.GetGroupNames.doc)
-        .def(
-            "AddProperty",
-            [abstract_value_cls](Class& self, const std::string& group_name,
-                const std::string& name, py::object value) {
-              py::object abstract = abstract_value_cls.attr("Make")(value);
-              self.AddPropertyAbstract(
-                  group_name, name, abstract.cast<const AbstractValue&>());
-            },
-            py::arg("group_name"), py::arg("name"), py::arg("value"),
-            cls_doc.AddProperty.doc)
-        .def(
-            "UpdateProperty",
-            [abstract_value_cls](Class& self, const std::string& group_name,
-                const std::string& name, py::object value) {
-              py::object abstract = abstract_value_cls.attr("Make")(value);
-              self.UpdatePropertyAbstract(
-                  group_name, name, abstract.cast<const AbstractValue&>());
-            },
-            py::arg("group_name"), py::arg("name"), py::arg("value"),
-            cls_doc.UpdateProperty.doc)
-        .def("HasProperty", &Class::HasProperty, py::arg("group_name"),
-            py::arg("name"), cls_doc.HasProperty.doc)
-        .def(
-            "GetProperty",
-            [](const Class& self, const std::string& group_name,
-                const std::string& name) {
-              py::object abstract =
-                  py::cast(self.GetPropertyAbstract(group_name, name),
-                      py_rvp::reference);
-              return abstract.attr("get_value")();
-            },
-            py::arg("group_name"), py::arg("name"), cls_doc.GetProperty.doc)
-        .def(
-            "GetPropertyOrDefault",
-            [](const Class& self, const std::string& group_name,
-                const std::string& name, py::object default_value) {
-              // For now, ignore typing. This is less efficient, but eh, it's
-              // Python.
-              if (self.HasProperty(group_name, name)) {
-                py::object py_self = py::cast(&self, py_rvp::reference);
-                return py_self.attr("GetProperty")(group_name, name);
-              } else {
-                return default_value;
-              }
-            },
-            py::arg("group_name"), py::arg("name"), py::arg("default_value"),
-            cls_doc.GetPropertyOrDefault.doc)
-        .def("RemoveProperty", &Class::RemoveProperty, py::arg("group_name"),
-            py::arg("name"), cls_doc.RemoveProperty.doc)
-        .def_static("default_group_name", &Class::default_group_name,
-            cls_doc.default_group_name.doc)
-        .def(
-            "__str__",
-            [](const Class& self) {
-              std::stringstream ss;
-              ss << self;
-              return ss.str();
-            },
-            "Returns formatted string.");
-  }
-
-  // GeometrySet
-  {
-    using Class = GeometrySet;
-    constexpr auto& cls_doc = doc.GeometrySet;
-    constexpr char extra_ctor_doc[] = "See main constructor";
-    // N.B. For containers, we use `std::vector<>` rather than abstract
-    // iterators / containers.
-    py::class_<Class>(m, "GeometrySet", cls_doc.doc)
-        .def(py::init(), cls_doc.ctor.doc)
-        .def(py::init<GeometryId>(), py::arg("geometry_id"), extra_ctor_doc)
-        .def(py::init<FrameId>(), py::arg("frame_id"), extra_ctor_doc)
-        .def(py::init([](std::vector<GeometryId> geometry_ids) {
-          return Class(geometry_ids);
-        }),
-            py::arg("geometry_ids"), extra_ctor_doc)
-        .def(py::init([](std::vector<FrameId> frame_ids) {
-          return Class(frame_ids);
-        }),
-            py::arg("frame_ids"), extra_ctor_doc)
-        .def(py::init([](std::vector<GeometryId> geometry_ids,
-                          std::vector<FrameId> frame_ids) {
-          return Class(geometry_ids, frame_ids);
-        }),
-            py::arg("geometry_ids"), py::arg("frame_ids"), extra_ctor_doc)
-        .def(
-            "Add",
-            [](Class* self, const GeometryId& geometry_id) {
-              self->Add(geometry_id);
-            },
-            py::arg("geometry_id"), cls_doc.Add.doc)
-        .def(
-            "Add",
-            [](Class* self, const FrameId& frame_id) { self->Add(frame_id); },
-            py::arg("frame_id"), cls_doc.Add.doc)
-        .def(
-            "Add",
-            [](Class* self, std::vector<GeometryId> geometry_ids) {
-              self->Add(geometry_ids);
-            },
-            py::arg("geometry_ids"), extra_ctor_doc)
-        .def(
-            "Add",
-            [](Class* self, std::vector<FrameId> frame_ids) {
-              self->Add(frame_ids);
-            },
-            py::arg("frame_ids"), extra_ctor_doc)
-        .def(
-            "Add",
-            [](Class* self, std::vector<GeometryId> geometry_ids,
-                std::vector<FrameId> frame_ids) {
-              self->Add(geometry_ids, frame_ids);
-            },
-            py::arg("geometry_ids"), py::arg("frame_ids"), extra_ctor_doc);
-  }
-
-  // GeometryVersion
-  {
-    using Class = GeometryVersion;
-    constexpr auto& cls_doc = doc.GeometryVersion;
-    py::class_<Class> cls(m, "GeometryVersion", cls_doc.doc);
-    cls.def(py::init(), cls_doc.ctor.doc)
-        .def(py::init<const GeometryVersion&>(), py::arg("other"),
-            "Creates a copy of the GeometryVersion.")
-        .def("IsSameAs", &Class::IsSameAs, py::arg("other"), py::arg("role"),
-            cls_doc.IsSameAs.doc);
-    DefCopyAndDeepCopy(&cls);
-  }
-
-  // Identifiers.
-  {
-    BindIdentifier<FilterId>(m, "FilterId", doc.FilterId.doc);
-    BindIdentifier<SourceId>(m, "SourceId", doc.SourceId.doc);
-    BindIdentifier<FrameId>(m, "FrameId", doc.FrameId.doc);
-    BindIdentifier<GeometryId>(m, "GeometryId", doc.GeometryId.doc);
-  }
-
-  // IllustrationProperties
-  {
-    py::class_<IllustrationProperties, GeometryProperties> cls(
-        m, "IllustrationProperties", doc.IllustrationProperties.doc);
-    cls.def(py::init(), doc.IllustrationProperties.ctor.doc)
-        .def(py::init<const IllustrationProperties&>(), py::arg("other"),
-            "Creates a copy of the properties");
-    DefCopyAndDeepCopy(&cls);
-  }
-
-  // PerceptionProperties
-  {
     py::class_<PerceptionProperties, GeometryProperties> cls(
         m, "PerceptionProperties", doc.PerceptionProperties.doc);
     cls.def(py::init(), doc.PerceptionProperties.ctor.doc)
         .def(py::init<const PerceptionProperties&>(), py::arg("other"),
             "Creates a copy of the properties");
-    DefCopyAndDeepCopy(&cls);
-  }
+    $DefCopyAndDeepCopy
+}
 
   // ProximityProperties
   {

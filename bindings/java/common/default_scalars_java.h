@@ -3,15 +3,15 @@
 /// @file
 /// Helpers for defining scalars and values.
 
-#include "drake/bindings/pydrake/autodiff_types_pybind.h"
-#include "drake/bindings/pydrake/common/cpp_template_pybind.h"
-#include "drake/bindings/pydrake/common/type_pack.h"
-#include "drake/bindings/pydrake/pydrake_pybind.h"
-#include "drake/bindings/pydrake/symbolic_types_pybind.h"
+#include "drake/bindings/java/autodiff_types_java.h"
+#include "drake/bindings/java/common/cpp_template_java.h"
+#include "drake/bindings/java/common/type_pack.h"
+#include "drake/bindings/java/drake_java.h"
+#include "drake/bindings/java/symbolic_types_java.h"
 #include "drake/common/default_scalars.h"
 
 namespace drake {
-namespace pydrake {
+namespace java {
 
 // N.B. This should be kept in sync with the `*_DEFAULT_SCALARS` macro in
 // `default_scalars.h`.
@@ -103,5 +103,5 @@ void DefCast(PyClass* cls, const char* doc, UPack U_pack = {}) {
   type_visit(bind_scalar, U_pack);
 }
 
-}  // namespace pydrake
+}  // namespace java
 }  // namespace drake

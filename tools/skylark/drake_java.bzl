@@ -1,5 +1,14 @@
 MainClassInfo = provider()
 
+def drake_java_library(
+        name,
+        **kwargs):
+    """A wrapper to insert Drake-specific customizations."""
+    native.java_library(
+        name = name,
+        **kwargs
+    )
+
 # Generate a launcher file to run installed java binaries
 def _drake_java_binary_install_launcher_impl(ctx):
     classpath = ctx.attr.target[JavaInfo].compilation_info.runtime_classpath
